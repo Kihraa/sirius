@@ -38,6 +38,7 @@ ITERATIONS=${ITERATIONS:-2}
 # Per-query timeout in seconds (covers both iterations + nsys overhead).
 QUERY_TIMEOUT=${QUERY_TIMEOUT:-90}
 SCAN_CACHE_LEVEL="${SCAN_CACHE_LEVEL:-}"
+GPU_METRICS_SET="${GPU_METRICS_SET:-}"
 
 if [ $# -lt 1 ]; then
     echo "Usage: $0 <scale_factor> [query_numbers...]"
@@ -52,6 +53,7 @@ if [ $# -lt 1 ]; then
     echo "  OUTPUT_DIR         - output directory for profiles (default: nsys_profiles/sf<SF>)"
     echo "  QUERY_TIMEOUT      - per-query timeout in seconds (default: 90)"
     echo "  ITERATIONS         - number of query iterations (default: 2 for cold+hot)"
+    echo "  GPU_METRICS_SET    - nsys GPU metrics set, e.g. gh100, ad10x (default: disabled)"
     exit 1
 fi
 
@@ -109,6 +111,7 @@ echo "Queries      : ${QUERIES[*]}"
 echo "Output dir   : $OUTPUT_DIR"
 echo "Config       : ${SIRIUS_CONFIG_FILE:-<not set>}"
 echo "Cache level  : ${SCAN_CACHE_LEVEL:-<default>}"
+echo "GPU metrics  : ${GPU_METRICS_SET:-<disabled>}"
 echo "nsys version : $(nsys --version 2>&1 | head -1)"
 echo "============================================"
 echo ""
@@ -221,12 +224,17 @@ EOF
     else
         CAPTURE_ARGS=""
     fi
+    GPU_METRICS_ARGS=""
+    if [ -n "$GPU_METRICS_SET" ]; then
+        GPU_METRICS_ARGS="--gpu-metrics-devices=0 --gpu-metrics-set=${GPU_METRICS_SET} --cuda-memory-usage=true"
+    fi
     timeout "$QUERY_TIMEOUT" \
     nsys profile \
         --trace=cuda,nvtx \
         --sample=none \
         --cudabacktrace=none \
         $CAPTURE_ARGS \
+        $GPU_METRICS_ARGS \
         --output="$NSYS_OUTPUT" \
         --force-overwrite=true \
         --stats=false \
